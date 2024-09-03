@@ -24,6 +24,66 @@
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
+
+void task1_handler(void);
+void task2_handler(void);
+void task3_handler(void);
+void task4_handler(void);
+
+uint32_t current_task = 0;
+
+uint32_t task_stacks[MAX_TASK] =
+								{
+								T1_STACK_START,
+								T2_STACK_START,
+								T3_STACK_START,
+								T4_STACK_START
+								};
+uint32_t task_handlers[MAX_TASK] =
+								{
+								(uint32_t)task1_handler,
+								(uint32_t)task2_handler,
+								(uint32_t)task3_handler,
+								(uint32_t)task4_handler
+								};
+
+uint32_t psp_top_of_stack[MAX_TASK] =
+								{
+								T1_STACK_START,
+								T2_STACK_START,
+								T3_STACK_START,
+								T4_STACK_START
+								};
+
+
+int main(void)
+{
+
+	enable_all_exceptions();
+	task1_handler();
+    /* Loop forever */
+	for(;;);
+}
+
+uint32_t get_current_stack_msp(void)
+{
+	return task_stacks[current_task];
+}
+
+__attribute ((naked)) void change_sp_to_msp(void)
+{
+	__asm volatile ("BL get_current_stack_msp");
+	__asm volatile ("MSR MSP, R0");
+}
+
+void enable_all_exceptions(void)
+{
+	uint32_t *pSHCRS = (uint32_t *)SHCRS;
+	*pSHCRS |= (1<< 0);	//MEMFAULTACT
+	*pSHCRS |= (1<< 1);	//BUSFAULTACT
+	*pSHCRS |= (1<< 3);	//USGFAULTACT
+}
+
 void task1_handler(void)
 {
 	while(1)
@@ -57,13 +117,25 @@ void task4_handler(void)
 	{
 		printf("In Task4 Handler\n");
 	}
-
 }
 
-int main(void)
-{
 
-	task1_handler();
-    /* Loop forever */
-	for(;;);
+//2. implement the fault handlers
+void HardFault_Handler(void)
+{
+	printf("Exception : Hardfault\n");
+	while(1);
+}
+
+
+void MemManage_Handler(void)
+{
+	printf("Exception : MemManage\n");
+	while(1);
+}
+
+void BusFault_Handler(void)
+{
+	printf("Exception : BusFault\n");
+	while(1);
 }
