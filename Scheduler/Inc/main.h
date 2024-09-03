@@ -8,29 +8,43 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
+#define DUMMY_XPSR 0x01000000U
+
+#define SYST_CLK 	((uint32_t)16000000)
+
+#define SYST_RVR 	((uint32_t*)0xE000E014)
+#define SYST_CVR 	((uint32_t*)0xE000E018)
+#define SYST_CSR 	((uint32_t*)0xE000E010)
+
 #define MAX_TASK 4U
 #define SHCRS 0xE000ED24
 
 
-#define RAM_END 0x20020000
-#define T1_STACK_START RAM_END
-#define T1_STACK_END (T1_STACK_START + 0x400)
+/* some stack memory calculations */
+#define SIZE_TASK_STACK          1024U
+#define SIZE_SCHED_STACK         1024U
 
-#define T2_STACK_START T1_STACK_END
-#define T2_STACK_END (T2_STACK_START + 0x400)
+#define SRAM_START               0x20000000U
+#define SIZE_SRAM                ( (128) * (1024))
+#define SRAM_END                 ((SRAM_START) + (SIZE_SRAM) )
 
-#define T3_STACK_START T2_STACK_END
-#define T3_STACK_END (T3_STACK_START + 0x400)
+#define T1_STACK_START           SRAM_END
+#define T2_STACK_START           ( (SRAM_END) - (1 * SIZE_TASK_STACK) )
+#define T3_STACK_START           ( (SRAM_END) - (2 * SIZE_TASK_STACK) )
+#define T4_STACK_START           ( (SRAM_END) - (3 * SIZE_TASK_STACK) )
+#define SCHED_STACK_START        ( (SRAM_END) - (4 * SIZE_TASK_STACK) )
 
-#define T4_STACK_START T3_STACK_END
-#define T4_STACK_END (T4_STACK_START + 0x400)
-
-#define MSP_STACK_START T3_STACK_END
-#define MSP_STACK_END (T4_STACK_START + 0x400)
 
 void enable_all_exceptions(void);
-__attribute ((naked)) void change_sp_to_msp(void);
-uint32_t get_current_stack_msp(void);
+__attribute ((naked)) void change_sp_to_psp(void);
+
+
+uint32_t get_psp_value(void);
+void save_psp_value(uint32_t psp);
+
+void init_tasks_stack(void);
+void init_SysTick_Timer(uint32_t ticks);
+__attribute ((naked)) void initialise_msp_stack_addr(uint32_t stack_addr);
 
 void task1Handler(void);
 void task2Handler(void);

@@ -58,30 +58,140 @@ uint32_t psp_top_of_stack[MAX_TASK] =
 
 int main(void)
 {
-
 	enable_all_exceptions();
+
+	initialise_msp_stack_addr(SCHED_STACK_START);
+
+	init_tasks_stack();
+
+	change_sp_to_psp();
+
+	uint32_t sys_tick_hz = SYST_CLK / 1000;
+	init_SysTick_Timer(sys_tick_hz);
+
 	task1_handler();
     /* Loop forever */
 	for(;;);
 }
 
-uint32_t get_current_stack_msp(void)
+void init_SysTick_Timer(uint32_t ticks)
 {
-	return task_stacks[current_task];
+	//1. Program reload value.
+	*SYST_RVR = ((0x00FFFFFF & ticks) -1);
+	//2. Clear current value.
+	*SYST_CVR &= ~(0x00FFFFFF);
+	//3. Program Control and Status register.
+	*SYST_CSR |= (0x00000007);
+
 }
 
-__attribute ((naked)) void change_sp_to_msp(void)
+uint32_t get_psp_value(void)
 {
-	__asm volatile ("BL get_current_stack_msp");
-	__asm volatile ("MSR MSP, R0");
+	return psp_top_of_stack[current_task];
+}
+
+
+void save_psp_value(uint32_t psp)
+{
+	psp_top_of_stack[current_task] = psp;
+}
+
+void update_next_task(void)
+{
+	current_task = (current_task + 1)% MAX_TASK;
+}
+
+__attribute ((naked)) void initialise_msp_stack_addr(uint32_t stack_addr)
+{
+	__asm volatile ("MSR MSP, %0": : "r"(stack_addr):);
+
+	__asm volatile ("BX LR");
+
+}
+
+__attribute ((naked)) void change_sp_to_psp(void)
+{
+	// 1. Update the PSP register to contain next Active Task PSP stored value
+	__asm volatile ("PUSH {LR}"); // this is to avoid LR being lost
+	__asm volatile ("BL get_psp_value");
+	__asm volatile ("MSR PSP, R0");
+	__asm volatile ("POP {LR}");
+
+	// 2. Change the CONTROL reg to make SP to be PSP;
+	__asm volatile ("MOV R0, #0x02 ");
+	__asm volatile ("MSR CONTROL, R0");
+	__asm volatile ("BX LR"); // The earlier Pushed LR is used to return back to the callee
 }
 
 void enable_all_exceptions(void)
 {
 	uint32_t *pSHCRS = (uint32_t *)SHCRS;
-	*pSHCRS |= (1<< 0);	//MEMFAULTACT
-	*pSHCRS |= (1<< 1);	//BUSFAULTACT
-	*pSHCRS |= (1<< 3);	//USGFAULTACT
+	*pSHCRS |= (1<< 16);	//USGFAULTENA
+	*pSHCRS |= (1<< 17);	//BUSFAULTENA
+	*pSHCRS |= (1<< 18);	//MEMFAULTENA
+}
+
+
+__attribute ((naked)) void SysTick_Handler(void)
+{
+
+		// Save the SF2 of the running Task
+		//1. Get current running task's PSP value
+		__asm volatile ("MRS R0, PSP");
+		//2. Using that PSP value store SF2( R4 to R11)
+		__asm volatile ("STMDB R0!,{R4-R11}");
+
+		__asm volatile ("PUSH {LR}");
+		//3. Save the current value of PSP; the decremented R0
+		__asm volatile ("BL save_psp_value");
+
+		// 4. Identify the next Active Task
+		__asm volatile ("BL update_next_task");
+
+
+		//5. get its past PSP value
+		__asm volatile ("BL get_psp_value");
+
+		//6. Using that PSP value retrieve SF2(R4 to R11)
+		__asm volatile ("LDMIA R0!,{R4-R11}");
+
+		//7. update PSP and exit
+		__asm volatile("MSR PSP,R0");
+
+		// 8. Get the correct LR from the stack
+		__asm volatile("POP {LR}");
+
+		// 9. return from the handler as it is naked using LR
+		__asm volatile("BX LR");
+}
+
+
+void init_tasks_stack(void)
+{
+	// Each of the stacks need to have the SF1 and SF2 initialised.
+	uint32_t *pPSP = NULL;
+	for (int i = 0; i < MAX_TASK; i++)
+	{
+		pPSP = (uint32_t*)task_stacks[i];
+
+		pPSP--;
+		*pPSP = DUMMY_XPSR;
+
+		pPSP--;
+		*pPSP = task_handlers[i];
+
+		pPSP--;
+		*pPSP = 0xFFFFFFFD;  // Return to Thread mode, exception return uses non-floating-point state from
+							 // the PSP and execution uses PSP after return
+		// Save R0 - R12 , total 13 registers.
+		for (int j = 0; j < 13; j++)
+		{
+			pPSP--;
+			*pPSP = 0x00;
+		}
+
+		psp_top_of_stack[i] = (uint32_t) pPSP;
+	}
 }
 
 void task1_handler(void)
