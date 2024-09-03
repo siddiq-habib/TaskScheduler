@@ -17,13 +17,53 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
+#include "main.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
+void task1_handler(void)
+{
+	while(1)
+	{
+		printf("In Task1 Handler\n");
+	}
+
+}
+
+void task2_handler(void)
+{
+	while(1)
+	{
+		printf("In Task2 Handler\n");
+	}
+
+}
+
+void task3_handler(void)
+{
+	while(1)
+	{
+		printf("In Task3 Handler\n");
+	}
+
+}
+
+void task4_handler(void)
+{
+	while(1)
+	{
+		printf("In Task4 Handler\n");
+	}
+
+}
+
 int main(void)
 {
+
+	task1_handler();
     /* Loop forever */
 	for(;;);
 }
