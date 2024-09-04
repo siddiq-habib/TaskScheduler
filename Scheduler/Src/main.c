@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "main.h"
+#include "led.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -30,6 +31,7 @@ void task2_handler(void);
 void task3_handler(void);
 void task4_handler(void);
 
+uint8_t resource_in_use = 1;
 uint32_t current_task = 0;
 
 uint32_t task_stacks[MAX_TASK] =
@@ -63,6 +65,8 @@ int main(void)
 	initialise_msp_stack_addr(SCHED_STACK_START);
 
 	init_tasks_stack();
+
+	led_init_all();
 
 	change_sp_to_psp();
 
@@ -198,7 +202,10 @@ void task1_handler(void)
 {
 	while(1)
 	{
-		printf("In Task1 Handler\n");
+		led_on(LED_GREEN);
+		delay(DELAY_COUNT_1S);
+		led_off(LED_GREEN);
+		delay(DELAY_COUNT_1S);
 	}
 
 }
@@ -207,7 +214,10 @@ void task2_handler(void)
 {
 	while(1)
 	{
-		printf("In Task2 Handler\n");
+		led_on(LED_ORANGE);
+		delay(DELAY_COUNT_500MS);
+		led_off(LED_ORANGE);
+		delay(DELAY_COUNT_500MS);
 	}
 
 }
@@ -216,17 +226,26 @@ void task3_handler(void)
 {
 	while(1)
 	{
-		printf("In Task3 Handler\n");
+		led_on(LED_BLUE);
+		delay(DELAY_COUNT_250MS);
+		led_off(LED_BLUE);
+		delay(DELAY_COUNT_250MS);
 	}
 
 }
 
 void task4_handler(void)
+
 {
 	while(1)
 	{
-		printf("In Task4 Handler\n");
+		led_on(LED_RED);
+		delay(DELAY_COUNT_125MS);
+		led_off(LED_RED);
+		delay(DELAY_COUNT_125MS);
 	}
+
+
 }
 
 
